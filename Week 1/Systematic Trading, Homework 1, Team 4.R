@@ -38,7 +38,7 @@ format(round(annual_return,1))
 stock_data_end <- cbind(stock_data_end,annual_return = annual_return)
 
 #subsetting data to get stock symbols and annual returns
-stock_data_end <- stock_data_end[c(1,8)]
+stock_data_end <- stock_data_end[,c(1,8)]
 
 # Identify the top 10 stocks in terms of total annual return
 top_10_stocks <- stock_data_end %>%
@@ -218,6 +218,72 @@ ans <-ans[gtools::mixedorder(rownames(ans)),]
 
 #display matrix
 View(ans)
+
+
+# ***********************************************************************************************************************
+# ******************ALTERNATIVE SOLUTION FOR QUESTION 3******************************
+
+# **************SET WORKING DIRECTORY AND CLEAR ENVIRONMENT ******************************
+
+
+# **************SET WORKING DIRECTORY AND CLEAR ENVIRONMENT ******************************
+library(rstudioapi)  # This is a external library of functions
+# Getting the path of your current close file
+current_path = rstudioapi::getActiveDocumentContext()$path 
+setwd(dirname(current_path ))
+rm(list=ls())
+cat("\014")
+
+########### Load Data 
+
+load("OHLC.rdata")
+sectors <- read.csv("sectors.csv")
+
+stocks2 <- merge(stock,sectors)
+
+############### Extract month from Date
+
+temp<-cbind(stocks2,Month = match(months(stocks2$date),month.name))
+
+############## Find Min and Max of each month  
+
+Month_details <- merge(aggregate(list(Min=temp$date),list(Month=temp$Month),min),
+                       aggregate(list(Max=temp$date),list(Month=temp$Month),max), by = "Month")
+
+############## Merge stocks with min of each month to get opening of each month
+
+stocks_open <- merge(temp,Month_details, by.x = c("Month","date"), by.y = c("Month","Min"))
+
+############# Calculate Avg Open for each sector
+avg_open<-aggregate(list(avg_open=stocks_open$open),
+                    list(sector=stocks_open$sector,month=stocks_open$Month),mean)
+
+
+############ Same as last 2 steps but for close
+stocks_close <- merge(temp,Month_details, by.x = c("Month","date"), by.y = c("Month","Min"))
+
+avg_close<-aggregate(list(avg_close=stocks_close$close),
+                     list(sector=stocks_close$sector,month=stocks_close$Month),mean)
+
+
+########### Merge open and close and calculate Avg
+
+avg_month_return <- merge(avg_open,avg_close)
+avg_month_return$month <- as.numeric(avg_month_return$month)
+avg_month_return$return <- avg_month_return$avg_close/avg_month_return$avg_open
+
+########## Order it by Sector and Month to form matrix
+
+avg_month_return <- avg_month_return[order(avg_month_return[,1],avg_month_return[,2]),]
+
+
+########## Create matrix and update row and column names of matrix
+
+A <- matrix(avg_month_return$return,11,12,byrow = T)
+rownames(A) <- unique(avg_month_return$sector)
+colnames(A) <- c(1:12)
+
+A
 
 # ***********************************************************************************************************************
 # ******************************QUESTION 4******************************
